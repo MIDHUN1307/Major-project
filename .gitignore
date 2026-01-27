@@ -1,0 +1,34 @@
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+
+# =========================
+# Node / React
+# =========================
+node_modules/
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.pyc
+venv/
+
+# =========================
+# Machine Learning (CRITICAL)
+# =========================
+*.safetensors
+*.bin
+*.pt
+*.onnx
+
+# Ignore trained model artifacts ONLY
+backend/ml_bert_model/model/bert_hr_model/
+backend/whisper/
+
+# =========================
+# OS
+# =========================
+.DS_Store
