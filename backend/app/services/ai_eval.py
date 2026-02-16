@@ -1,55 +1,45 @@
-def evaluate_hr_answer(answer: str):
-    """
-    AI logic for evaluating HR interview answers.
-    This is a rule-based AI (can be upgraded to NLP / LLM later).
-    """
+def extract_quality_signals(answer: str):
 
-    words = answer.lower().split()
+    answer_lower = answer.lower()
+    words = answer_lower.split()
     word_count = len(words)
 
-    confidence_words = [
+    # Action / confidence-oriented verbs
+    confidence_words = {
         "led", "managed", "developed", "created",
-        "implemented", "handled", "improved"
-    ]
+        "implemented", "handled", "improved",
+        "designed", "built", "optimized"
+    }
 
-    confidence_score = sum(1 for w in words if w in confidence_words)
+    confidence_hits = sum(1 for w in words if w in confidence_words)
 
-    # Base scoring logic
-    score = 5
+    # ---- Signal extraction ----
 
-    if word_count > 40:
-        score += 2
-    if confidence_score >= 2:
-        score += 1
-    if word_count < 15:
-        score -= 2
-
-    # Keep score in range 0–10
-    score = max(0, min(score, 10))
-
-    # Feedback logic
-    if score <= 4:
-        feedback = "Your answer needs improvement. Try to be more clear and detailed."
-        suggestions = [
-            "Expand your explanation",
-            "Give a real example",
-            "Use confident action words"
-        ]
-    elif score <= 7:
-        feedback = "Good answer, but there is room for improvement."
-        suggestions = [
-            "Sound more confident",
-            "Structure your answer better"
-        ]
+    # Clarity: based on minimum explanation length
+    if word_count < 20:
+        clarity = "low"
+    elif word_count < 40:
+        clarity = "medium"
     else:
-        feedback = "Excellent answer! You communicated your thoughts clearly."
-        suggestions = [
-            "Maintain this confidence",
-            "Continue using real examples"
-        ]
+        clarity = "high"
+
+    # Structure: rough heuristic based on length & flow
+    if word_count < 30:
+        structure = "weak"
+    else:
+        structure = "ok"
+
+    # Confidence tone: based on action verbs
+    if confidence_hits == 0:
+        confidence_tone = "hesitant"
+    elif confidence_hits == 1:
+        confidence_tone = "neutral"
+    else:
+        confidence_tone = "confident"
 
     return {
-        "score": score,
-        "feedback": feedback,
-        "suggestions": suggestions
+        "word_count": word_count,
+        "clarity": clarity,
+        "structure": structure,
+        "confidence_tone": confidence_tone
     }

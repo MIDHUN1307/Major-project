@@ -13,9 +13,9 @@ export default function HRInterview() {
   const [transcript, setTranscript] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-
   const [volume, setVolume] = useState(0);
   const [feedback, setFeedback] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
@@ -27,22 +27,13 @@ export default function HRInterview() {
 
   const navigate = useNavigate();
 
-  // 🔊 SEND AUDIO TO WHISPER
-  const sendAudioToWhisper = async (audioBlob) => {
-    const formData = new FormData();
-    formData.append("file", audioBlob);
-
-    const response = await fetch("http://localhost:8000/transcribe", {
-      method: "POST",
-      body: formData
-    });
-
-    const data = await response.json();
-    setTranscript(data.text);
-  };
-
-  // 🎤 START LISTENING
+  // 🎤 START RECORDING
   const startListening = async () => {
+    // Reset previous state
+    setTranscript("");
+    setFeedback(null);
+    setSubmitted(false);
+
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
     mediaRecorderRef.current = new MediaRecorder(stream);
@@ -70,7 +61,7 @@ export default function HRInterview() {
     trackVolume();
   };
 
-  // 📊 TRACK VOLUME
+  // 📊 Track volume for visualizer
   const trackVolume = () => {
     analyserRef.current.getByteFrequencyData(dataArrayRef.current);
 
@@ -81,7 +72,7 @@ export default function HRInterview() {
     animationRef.current = requestAnimationFrame(trackVolume);
   };
 
-  // 🛑 STOP LISTENING
+  // 🛑 STOP RECORDING → SINGLE BACKEND CALL
   const stopListening = async () => {
     cancelAnimationFrame(animationRef.current);
     audioContextRef.current.close();
@@ -90,45 +81,60 @@ export default function HRInterview() {
     setIsListening(false);
 
     mediaRecorderRef.current.onstop = async () => {
-      const audioBlob = new Blob(audioChunksRef.current, {
+      const blob = new Blob(audioChunksRef.current, {
         type: "audio/webm"
       });
-      await sendAudioToWhisper(audioBlob);
+
+      const formData = new FormData();
+      formData.append("question", hrQuestions[currentIndex]);
+      formData.append("audio", blob);
+
+      try {
+        setIsProcessing(true);
+
+        const response = await fetch(
+          "http://127.0.0.1:8000/speech/evaluate",
+          {
+            method: "POST",
+            body: formData
+          }
+        );
+
+        const data = await response.json();
+
+        // Set transcript
+        setTranscript(data.transcript || "");
+
+        // Store full feedback response
+        setFeedback(data);
+
+      } catch (error) {
+        console.error("Evaluation error:", error);
+      } finally {
+        setIsProcessing(false);
+      }
     };
   };
 
-  // ✅ SUBMIT ANSWER → BACKEND
-  const submitAnswer = async () => {
-    try {
-      const response = await fetch("http://127.0.0.1:8000/hr/evaluate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: hrQuestions[currentIndex],
-          answer: transcript
-        })
-      });
-
-      const data = await response.json();
-      setFeedback(data);
-      setSubmitted(true);
-
-    } catch (error) {
-      console.error("Evaluation error:", error);
+  // ✅ Submit → Just show feedback (NO second API call)
+  const submitAnswer = () => {
+    if (!feedback) {
+      alert("Please record your answer first.");
+      return;
     }
+
+    setSubmitted(true);
   };
 
-  // 🔁 RETRY / IMPROVE ANSWER
   const retryAnswer = () => {
     setSubmitted(false);
     setFeedback(null);
+    setTranscript("");
   };
 
-  // ➡️ NEXT QUESTION
   const goToNextQuestion = () => {
     setSubmitted(false);
     setTranscript("");
-    setIsListening(false);
     setFeedback(null);
 
     if (currentIndex < hrQuestions.length - 1) {
@@ -136,7 +142,6 @@ export default function HRInterview() {
     }
   };
 
-  // 🛑 FINISH INTERVIEW
   const finishInterview = () => {
     if (window.confirm("Are you sure you want to finish the interview?")) {
       navigate("/student/dashboard");
@@ -164,19 +169,30 @@ export default function HRInterview() {
 
         <QuestionCard question={hrQuestions[currentIndex]} />
 
-        {/* Voice Area */}
+        {/* Recording Section */}
         <div className="mt-8 flex flex-col items-center">
           <div className="relative mb-4">
             {isListening && <VoiceVisualizer volume={volume} />}
+
             <button
               onClick={isListening ? stopListening : startListening}
               className={`w-24 h-24 rounded-full flex items-center justify-center ${
                 isListening ? "bg-red-500" : "bg-blue-600"
               }`}
             >
-              {isListening ? <MicOff className="text-white" /> : <Mic className="text-white" />}
+              {isListening ? (
+                <MicOff className="text-white" />
+              ) : (
+                <Mic className="text-white" />
+              )}
             </button>
           </div>
+
+          {isProcessing && (
+            <p className="text-blue-600 mb-2 font-medium">
+              Processing speech...
+            </p>
+          )}
 
           <textarea
             value={transcript}
@@ -186,7 +202,8 @@ export default function HRInterview() {
           />
         </div>
 
-        {!submitted && (
+        {/* Submit Button */}
+        {!submitted && feedback && (
           <button
             onClick={submitAnswer}
             className="mt-6 w-full bg-blue-600 text-white py-3 rounded-lg"
@@ -195,11 +212,11 @@ export default function HRInterview() {
           </button>
         )}
 
+        {/* Feedback Section */}
         {submitted && feedback && (
           <>
             <InterviewFeedback feedback={feedback} />
 
-            {/* 🔁 Retry Button */}
             <div className="mt-4 flex justify-center">
               <button
                 onClick={retryAnswer}
@@ -211,7 +228,7 @@ export default function HRInterview() {
 
             <NextSteps feedback={feedback} />
 
-
+            {/* Navigation Buttons */}
             <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
               {currentIndex < hrQuestions.length - 1 && (
                 <button

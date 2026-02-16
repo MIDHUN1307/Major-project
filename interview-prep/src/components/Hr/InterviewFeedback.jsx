@@ -1,6 +1,8 @@
 import { CheckCircle2, TrendingUp } from "lucide-react";
 
 export default function InterviewFeedback({ feedback }) {
+  if (!feedback) return null;
+
   return (
     <div className="mt-8 space-y-6">
       {/* Header */}
@@ -21,19 +23,32 @@ export default function InterviewFeedback({ feedback }) {
         </div>
       </div>
 
-      {/* Suggestions */}
-      <div className="p-5 bg-purple-50 rounded-xl border">
-        <div className="flex gap-3 mb-3">
-          <TrendingUp className="text-purple-600" />
-          <h4 className="font-semibold">Suggestions</h4>
+      {/* Strength */}
+      {feedback.strength && (
+        <div className="p-5 bg-green-50 rounded-xl border">
+          <div className="flex gap-3 mb-2">
+            <CheckCircle2 className="text-green-600" />
+            <h4 className="font-semibold">Strength</h4>
+          </div>
+          <p>{feedback.strength}</p>
         </div>
+      )}
 
-        <ul className="list-disc ml-6 space-y-2">
-          {feedback.suggestions.map((s, i) => (
-            <li key={i}>{s}</li>
-          ))}
-        </ul>
-      </div>
+      {/* Growth Areas */}
+      {feedback.growth_areas && feedback.growth_areas.length > 0 && (
+        <div className="p-5 bg-purple-50 rounded-xl border">
+          <div className="flex gap-3 mb-3">
+            <TrendingUp className="text-purple-600" />
+            <h4 className="font-semibold">Areas to Improve</h4>
+          </div>
+
+          <ul className="list-disc ml-6 space-y-2">
+            {feedback.growth_areas.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

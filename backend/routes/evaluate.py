@@ -3,14 +3,23 @@ from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from app.services.ai_eval import extract_quality_signals
+
+
 router = APIRouter()
 
 # Load BERT-based sentence model ONCE
 bert_model = SentenceTransformer("all-MiniLM-L6-v2")
 
+# 🔹 Relevance thresholds
+RELEVANCE_HARD_CUTOFF = 15    # Completely irrelevant
+RELEVANCE_SOFT_CUTOFF = 40    # Weak relevance
+
+
 class EvaluateRequest(BaseModel):
     question: str
     answer: str
+
 
 @router.post("/hr/evaluate")
 def evaluate_answer(data: EvaluateRequest):
@@ -38,16 +47,32 @@ def evaluate_answer(data: EvaluateRequest):
     else:
         completeness = 85
 
-    # 4️⃣ Fluency score
-    fluency = 80
+    # 🚫 HARD RELEVANCE GATE
+    if relevance_score < RELEVANCE_HARD_CUTOFF:
+        return {
+            "confidence": 0,
+            "relevance_score": round(relevance_score, 2),
+            "word_count": word_count,
+            "strength": "You attempted to answer the question.",
+            "growth_areas": [
+                "Your answer is not relevant to the question. Try directly addressing what the interviewer is asking."
+            ]
+        }
 
-    # 5️⃣ Final confidence score
+    # 4️⃣ Fluency score
+    fluency = 80 if relevance_score >= RELEVANCE_SOFT_CUTOFF else 20
+
+    # 5️⃣ Base confidence score
     confidence = int(
         0.5 * relevance_score +
         0.3 * completeness +
         0.2 * fluency
     )
     confidence = max(0, min(confidence, 100))
+
+    # 🔻 SOFT RELEVANCE SCALING
+    if relevance_score < RELEVANCE_SOFT_CUTOFF:
+        confidence = int(confidence * (relevance_score / RELEVANCE_SOFT_CUTOFF))
 
     # 🔍 Role detection
     role = "general"
@@ -65,52 +90,95 @@ def evaluate_answer(data: EvaluateRequest):
     positive_count = sum(word in answer_lower for word in positive_words)
     negative_count = sum(word in answer_lower for word in negative_words)
 
-    # 6️⃣ Suggestions (enhanced)
-    suggestions = []
+    # 6️⃣ Quality signals
+    signals = extract_quality_signals(answer)
 
-    # Relevance-based
-    if relevance_score < 40:
-        suggestions.append("Your answer is weakly related to the question. Try to focus more on what is being asked.")
-    elif relevance_score < 60:
-        suggestions.append("Try to align your answer more closely with the question.")
+    strengths = []
+    growth_areas = []
 
-    # Length-based
-    if word_count < 15:
-        suggestions.append("Your answer is too short. Try to elaborate with more details.")
-    elif word_count < 30:
-        suggestions.append("You can improve your answer by adding more explanation.")
+    # ---- Strengths (realistic & human) ----
+    if relevance_score >= 70:
+        strengths.append(
+            "You addressed the question clearly and stayed focused on the main topic."
+        )
+    elif relevance_score >= 60:
+        strengths.append(
+            "Your answer generally relates to the question and shows understanding of the topic."
+        )
 
-    # Content quality
-    if "experience" not in answer_lower:
-        suggestions.append("Consider mentioning relevant experience or projects.")
+    if positive_count > 0:
+        strengths.append(
+            "Your tone sounds positive and engaged, which creates a good impression in an interview."
+        )
+
+    if signals["confidence_tone"] == "confident":
+        strengths.append(
+            "You used action-oriented language, which reflects confidence in your abilities."
+        )
+
+    if word_count >= 40:
+        strengths.append(
+            "You provided a reasonably detailed response, helping the interviewer understand your thought process."
+        )
+
+    # ---- Growth Areas (coach-style, Yoodli-like) ----
+    if relevance_score < 60:
+        growth_areas.append(
+            "Some parts of your answer drift away from the question. Try directly addressing what the interviewer is asking before adding extra details."
+        )
+
+    if signals["clarity"] == "low":
+        growth_areas.append(
+            "Your response feels brief. Consider explaining what you did, why you did it, and what the outcome was."
+        )
+
+    if signals["structure"] == "weak":
+        growth_areas.append(
+            "Structuring your answer using the Situation–Action–Result approach would make it easier to follow."
+        )
+
+    if "experience" not in answer_lower and "project" not in answer_lower:
+        growth_areas.append(
+            "Including a short example from a real project or experience would make your answer more convincing."
+        )
+
+    if "result" not in answer_lower and "outcome" not in answer_lower and "impact" not in answer_lower:
+        growth_areas.append(
+            "Try mentioning the outcome or impact of your work so the interviewer understands the value you added."
+        )
 
     if "skill" not in answer_lower and "skills" not in answer_lower:
-        suggestions.append("You may include key skills related to the role.")
+        growth_areas.append(
+            "Explicitly mentioning the skills you used can strengthen your answer."
+        )
 
-    # Role-based
+    # ---- Role-specific coaching ----
     if role == "backend":
-        suggestions.append("Mention backend technologies such as APIs, databases, or server-side logic.")
+        growth_areas.append(
+            "For backend roles, interviewers often expect clarity around APIs, databases, or system design—consider briefly mentioning these."
+        )
     elif role == "frontend":
-        suggestions.append("You can highlight UI frameworks, responsiveness, or user experience aspects.")
+        growth_areas.append(
+            "For frontend roles, highlighting UI decisions, responsiveness, or user experience improvements can improve your answer."
+        )
     elif role == "ai":
-        suggestions.append("Consider mentioning datasets, models, or evaluation metrics you have worked with.")
-    else:
-        suggestions.append("Try to align your answer with the role you are applying for.")
+        growth_areas.append(
+            "For AI-related roles, mentioning the dataset, model choice, or evaluation metrics would make your response stronger."
+        )
 
-    # Sentiment-based
-    if negative_count > 0:
-        suggestions.append("Try to use more confident and positive language while answering.")
-    elif positive_count == 0:
-        suggestions.append("You can make your answer more impactful by using confident and assertive language.")
-    else:
-        suggestions.append("Your positive tone adds confidence to your answer.")
+    if signals["confidence_tone"] == "hesitant":
+        growth_areas.append(
+            "Your language sounds slightly hesitant. Try using more assertive phrasing to clearly state your role and contributions."
+        )
 
-    # Always add structure advice
-    suggestions.append("Maintain a clear and well-structured flow while answering.")
+    # ---- Limit output ----
+    strength = strengths[0] if strengths else "You made a reasonable attempt to answer the question."
+    growth_areas = growth_areas[:2]
 
     return {
         "confidence": confidence,
         "relevance_score": round(relevance_score, 2),
         "word_count": word_count,
-        "suggestions": suggestions
+        "strength": strength,
+        "growth_areas": growth_areas
     }

@@ -1,7 +1,11 @@
 fastapi
 uvicorn
-pydantic
+python-multipart
+librosa
+numpy
+soundfile
+sentence-transformers
 torch
-pandas
-transformers
+openai-whisper
 scikit-learn
+pydantic

@@ -31,11 +31,11 @@ function App() {
   position="top-center"
   toastOptions={{
     style: {
-      minWidth: "360px",      // ⬅️ wider box
-      padding: "16px 20px",   // ⬅️ bigger spacing
-      fontSize: "15px",       // ⬅️ readable text
-      borderRadius: "14px",   // ⬅️ modern rounded
-      background: "#111827",  // dark gray (modern)
+      minWidth: "360px",      
+      padding: "16px 20px",   
+      fontSize: "15px",       
+      borderRadius: "14px",   
+      background: "#111827",  
       color: "#ffffff",
     },
     success: {
