@@ -5,7 +5,8 @@ librosa
 numpy
 soundfile
 sentence-transformers
-torch
-openai-whisper
 scikit-learn
 pydantic
+faster-whisper
+transformers
+ollama

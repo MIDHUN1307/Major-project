@@ -7,23 +7,35 @@ export default function Test() {
   const { state } = useLocation();
   const navigate = useNavigate();
 
-  // ✅ FIX 1: read topic title (string)
+  // ✅ FIX 1: read topic title (string) or adaptive flag
   const topicTitle = state?.topicTitle;
+  const isAdaptive = state?.isAdaptive;
 
   // ✅ FIX 2: correct route guard
   useEffect(() => {
-    if (!topicTitle) {
+    if (!topicTitle && !isAdaptive) {
       navigate('/aptitude');
     }
-  }, [topicTitle, navigate]);
+  }, [topicTitle, isAdaptive, navigate]);
 
-  if (!topicTitle) return null;
-
-  // ✅ FIX 3: correct data source
-  const questions = aptitudeQuestions[topicTitle] || [];
+  // Load standard topic questions or generate curated test
+  const [questions, setQuestions] = useState([]);
+  
+  useEffect(() => {
+     if (isAdaptive) {
+        // Dynamically import to avoid circular dependencies if any
+        import('../../utils/banditModel').then(module => {
+           setQuestions(module.generateCuratedTest(10)); // 10 mixed questions for adaptive test
+        });
+     } else if (topicTitle) {
+        setQuestions(aptitudeQuestions[topicTitle] || []);
+     }
+  }, [topicTitle, isAdaptive]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
+
+  if ((!topicTitle && !isAdaptive) || questions.length === 0) return null;
 
   const currentQuestion = questions[currentIndex];
 
@@ -46,39 +58,60 @@ export default function Test() {
     }
   };
 
-    const handleSubmit = () => {
-  let correct = 0;
-  let wrong = 0;
-  let skipped = 0;
+  const handleSubmit = async () => {
+    let correct = 0;
+    let wrong = 0;
+    let skipped = 0;
 
-  questions.forEach((q, index) => {
-    if (answers[index] === undefined) {
-      skipped++;
-    } else if (answers[index] === q.answer) {
-      correct++;
-    } else {
-      wrong++;
-    }
-  });
+    // For adaptive tests, we track stats per topic
+    const topicStats = {};
 
-  const totalQuestions = questions.length;
-  const accuracy = Math.round((correct / totalQuestions) * 100);
-
-  navigate('/aptitude/result', {
-    state: {
-      result: {
-        topic: topicTitle,
-        totalQuestions,
-        score: correct,
-        correctAnswers: correct,
-        wrongAnswers: wrong,
-        skippedQuestions: skipped,
-        accuracy,
-        timeTaken: '—' // you can add timer later
+    questions.forEach((q, index) => {
+      const topicToUpdate = isAdaptive ? q.originalTopic : topicTitle;
+      
+      if (!topicStats[topicToUpdate]) {
+          topicStats[topicToUpdate] = { total: 0, wrong: 0 };
       }
-    }
-  });
-};
+      
+      topicStats[topicToUpdate].total += 1;
+
+      if (answers[index] === undefined) {
+        skipped++;
+        // Count skipped as wrong for bandit model purpose
+        topicStats[topicToUpdate].wrong += 1;
+      } else if (answers[index] === q.answer) {
+        correct++;
+      } else {
+        wrong++;
+        topicStats[topicToUpdate].wrong += 1;
+      }
+    });
+
+    const totalQuestions = questions.length;
+    const accuracy = Math.round((correct / totalQuestions) * 100);
+    
+    // Update Bandit Model stats
+    const banditModule = await import('../../utils/banditModel');
+    Object.keys(topicStats).forEach(topic => {
+        banditModule.updateStats(topic, topicStats[topic].total, topicStats[topic].wrong);
+    });
+
+    navigate('/aptitude/result', {
+      state: {
+        result: {
+          topic: isAdaptive ? 'Adaptive AI Test' : topicTitle,
+          isAdaptive,
+          totalQuestions,
+          score: correct,
+          correctAnswers: correct,
+          wrongAnswers: wrong,
+          skippedQuestions: skipped,
+          accuracy,
+          timeTaken: '—' // you can add timer later
+        }
+      }
+    });
+  };
 
 
   return (
@@ -86,7 +119,7 @@ export default function Test() {
       {/* Test Header */}
       <div className="max-w-4xl mx-auto mb-6">
         <h1 className="text-2xl font-bold text-slate-800">
-          {topicTitle} Test
+          {isAdaptive ? 'Adaptive AI Curated Test' : `${topicTitle} Test`}
         </h1>
         <p className="text-sm text-slate-500">
           Question {currentIndex + 1} of {questions.length}

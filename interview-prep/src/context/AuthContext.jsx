@@ -4,6 +4,7 @@ import { app } from "../firebase/firebaseConfig";
 import { getUserProfile } from "../firebase/userService";
 
 const AuthContext = createContext(null);
+const ACTIVE_UID_KEY = "active_uid";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -20,16 +21,19 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     await auth.signOut();
     setUser(null);
+    localStorage.removeItem(ACTIVE_UID_KEY);
   };
 
   // 🔐 persist login after refresh
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        localStorage.setItem(ACTIVE_UID_KEY, firebaseUser.uid);
         const profile = await getUserProfile(firebaseUser.uid);
         setUser(profile);
       } else {
         setUser(null);
+        localStorage.removeItem(ACTIVE_UID_KEY);
       }
       setLoading(false);
     });

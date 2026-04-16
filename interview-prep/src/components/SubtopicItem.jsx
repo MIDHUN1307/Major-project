@@ -4,6 +4,7 @@ export default function SubtopicItem({
   subtopic,
   isCompleted,
   onToggleCompletion,
+  progressKey,
 }) {
   return (
     <div
@@ -29,7 +30,7 @@ export default function SubtopicItem({
           </button>
 
           <button
-            onClick={() => onToggleCompletion(subtopic.id)}
+            onClick={() => onToggleCompletion(progressKey)}
             className="text-sm px-4 py-2 rounded border"
           >
             {isCompleted ? "Done" : "Mark Done"}

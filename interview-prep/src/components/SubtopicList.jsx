@@ -5,6 +5,7 @@ export default function SubtopicList({
   subtopicCompletions,
   onToggleCompletion,
   topicTag,
+  topicId,
 }) {
   const allSubtopics = Array.isArray(subtopics)
     ? subtopics
@@ -16,13 +17,19 @@ export default function SubtopicList({
   return (
     <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
       {allSubtopics.map((subtopic) => (
+        (() => {
+          const progressKey = `${topicId}:${subtopic.id}`;
+          return (
         <SubtopicItem
-          key={subtopic.id}
+          key={progressKey}
           subtopic={subtopic}
-          isCompleted={subtopicCompletions[subtopic.id]}
+          isCompleted={subtopicCompletions[progressKey]}
           onToggleCompletion={onToggleCompletion}
+          progressKey={progressKey}
           topicTag={topicTag}
         />
+          );
+        })()
       ))}
     </div>
   );

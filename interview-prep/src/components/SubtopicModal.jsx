@@ -44,6 +44,7 @@ export default function SubtopicModal({ topic, onClose }) {
             subtopicCompletions={progress}
             onToggleCompletion={handleToggle}
             topicTag={topic.tag}
+            topicId={topic.id}
           />
         </div>
       </div>

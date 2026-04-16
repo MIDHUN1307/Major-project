@@ -12,7 +12,7 @@ import CodingTopics from './Pages/coding/CodingTopics';
 import HRInterview from './Pages/Hr/HRInterview';
 import { Toaster } from "react-hot-toast";
 import { useAuth } from "./context/AuthContext";
-
+import HrSummary from './Pages/Hr/HrSummary';
 function App() {
   const { loading } = useAuth();
 
@@ -75,7 +75,7 @@ function App() {
 
       {/* hr interview */ }
       <Route path="/hr" element={<HRInterview />} />
-
+      <Route path="/hr-summary" element={<HrSummary />} />
 
 
         {/* Fallback */}

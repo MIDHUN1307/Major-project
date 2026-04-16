@@ -1,11 +1,12 @@
-const progressData = [
-  { title: "Overall Readiness", value: 76, color: "bg-blue-500" },
-  { title: "Aptitude Progress", value: 82, color: "bg-purple-500" },
-  { title: "Coding Progress", value: 68, color: "bg-emerald-500" },
-  { title: "HR Interview", value: 74, color: "bg-orange-500" },
-];
+export default function ProgressCards({ overallReadiness, aptitudeProgress, codingProgress, hrProgress }) {
 
-export default function ProgressCards() {
+  const progressData = [
+    { title: "Overall Readiness", value: overallReadiness, color: "bg-blue-500" },
+    { title: "Aptitude Progress", value: aptitudeProgress, color: "bg-purple-500" },
+    { title: "Coding Progress", value: codingProgress, color: "bg-emerald-500" },
+    { title: "HR Interview", value: hrProgress, color: "bg-orange-500" },
+  ];
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
       {progressData.map((item) => (

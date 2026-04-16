@@ -9,9 +9,17 @@ export default function QuestionCard({ question }) {
           <p className="text-sm font-semibold uppercase text-gray-700 mb-2">
             Interview Question
           </p>
-          <p className="text-xl font-medium text-gray-900">
-            {question}
-          </p>
+
+          {question ? (
+            <p className="text-xl font-medium text-gray-900">
+              {question}
+            </p>
+          ) : (
+            <p className="text-xl font-medium text-gray-400 animate-pulse">
+              Loading question...
+            </p>
+          )}
+
         </div>
       </div>
     </div>

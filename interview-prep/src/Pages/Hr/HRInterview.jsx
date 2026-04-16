@@ -6,16 +6,25 @@ import { hrQuestions } from "./hrQuestions";
 import QuestionCard from "../../components/Hr/QuestionCard";
 import VoiceVisualizer from "../../components/Hr/VoiceVisualizer";
 import InterviewFeedback from "../../components/Hr/InterviewFeedback";
-import NextSteps from "../../components/Hr/NextSteps";
+import ThinkingTimer from "../../components/Hr/ThinkingTimer";
+
+import { saveHrInterview } from "../../firebase/HrService";
+import { auth } from "../../firebase/firebaseConfig";
 
 export default function HRInterview() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const [staticIndex, setStaticIndex] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState(hrQuestions[0]);
+  const [followUpCount, setFollowUpCount] = useState(0);
+
   const [volume, setVolume] = useState(0);
   const [feedback, setFeedback] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const [answers, setAnswers] = useState([]);
 
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
@@ -27,9 +36,8 @@ export default function HRInterview() {
 
   const navigate = useNavigate();
 
-  // 🎤 START RECORDING
+  // START RECORDING
   const startListening = async () => {
-    // Reset previous state
     setTranscript("");
     setFeedback(null);
     setSubmitted(false);
@@ -61,18 +69,15 @@ export default function HRInterview() {
     trackVolume();
   };
 
-  // 📊 Track volume for visualizer
   const trackVolume = () => {
     analyserRef.current.getByteFrequencyData(dataArrayRef.current);
-
     const sum = dataArrayRef.current.reduce((a, b) => a + b, 0);
     const avg = sum / dataArrayRef.current.length;
-
     setVolume(Math.min(avg / 128, 1));
     animationRef.current = requestAnimationFrame(trackVolume);
   };
 
-  // 🛑 STOP RECORDING → SINGLE BACKEND CALL
+  // STOP RECORDING
   const stopListening = async () => {
     cancelAnimationFrame(animationRef.current);
     audioContextRef.current.close();
@@ -86,7 +91,7 @@ export default function HRInterview() {
       });
 
       const formData = new FormData();
-      formData.append("question", hrQuestions[currentIndex]);
+      formData.append("question", currentQuestion);
       formData.append("audio", blob);
 
       try {
@@ -102,10 +107,7 @@ export default function HRInterview() {
 
         const data = await response.json();
 
-        // Set transcript
         setTranscript(data.transcript || "");
-
-        // Store full feedback response
         setFeedback(data);
 
       } catch (error) {
@@ -116,12 +118,22 @@ export default function HRInterview() {
     };
   };
 
-  // ✅ Submit → Just show feedback (NO second API call)
   const submitAnswer = () => {
     if (!feedback) {
       alert("Please record your answer first.");
       return;
     }
+
+    setAnswers(prev => [
+      ...prev,
+      {
+        question: currentQuestion,
+        transcript: transcript,
+        scores: feedback.scores,
+        strengths: feedback.feedback.strengths,
+        improvements: feedback.feedback.improvements
+      }
+    ]);
 
     setSubmitted(true);
   };
@@ -132,27 +144,90 @@ export default function HRInterview() {
     setTranscript("");
   };
 
-  const goToNextQuestion = () => {
+  // NEXT QUESTION
+  const goToNextQuestion = (forceSkip = false) => {
+
+    if (!forceSkip && !feedback) return;
+
+    const followUp = feedback?.adaptive?.follow_up_question;
+    const shouldFollow = feedback?.adaptive?.should_follow_up;
+
     setSubmitted(false);
     setTranscript("");
     setFeedback(null);
 
-    if (currentIndex < hrQuestions.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
+    if (!forceSkip && followUpCount < 1 && shouldFollow) {
+      setCurrentQuestion(followUp);
+      setFollowUpCount(1);
+    } else {
+      const nextIndex = staticIndex + 1;
+
+      if (nextIndex < hrQuestions.length) {
+        setStaticIndex(nextIndex);
+        setCurrentQuestion(hrQuestions[nextIndex]);
+        setFollowUpCount(0);
+      }
     }
   };
 
-  const finishInterview = () => {
-    if (window.confirm("Are you sure you want to finish the interview?")) {
-      navigate("/student/dashboard");
+  // FINISH INTERVIEW
+  const finishInterview = async () => {
+
+    if (answers.length === 0) {
+      alert("Please answer at least one question before finishing.");
+      return;
     }
+
+    const confirmFinish = window.confirm("Are you sure you want to finish the interview?");
+    if (!confirmFinish) return;
+
+    try {
+
+      const user = auth.currentUser;
+
+      if (!user) {
+        console.error("User not logged in");
+        navigate("/hr-summary");
+        return;
+      }
+
+      console.log("Generating AI summary...");
+
+      // CALL BACKEND AI SUMMARY API
+      const summaryResponse = await fetch(
+        "http://127.0.0.1:8000/hr/generate-summary",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            answers: answers
+          })
+        }
+      );
+
+      const summaryData = await summaryResponse.json();
+
+      console.log("AI Summary:", summaryData);
+
+      // SAVE INTERVIEW DATA
+      await saveHrInterview(user.uid, {
+        answers: answers,
+        summary: summaryData
+      });
+
+    } catch (error) {
+      console.error("Error finishing interview:", error);
+    }
+
+    navigate("/hr-summary");
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
       <div className="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow-xl">
 
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={() => navigate("/student/dashboard")}
@@ -167,9 +242,14 @@ export default function HRInterview() {
           HR Interview Practice
         </h1>
 
-        <QuestionCard question={hrQuestions[currentIndex]} />
+        <QuestionCard question={currentQuestion} />
 
-        {/* Recording Section */}
+        <ThinkingTimer
+          question={currentQuestion}
+          onSkip={() => goToNextQuestion(true)}
+          isRecording={isListening}
+        />
+
         <div className="mt-8 flex flex-col items-center">
           <div className="relative mb-4">
             {isListening && <VoiceVisualizer volume={volume} />}
@@ -202,7 +282,6 @@ export default function HRInterview() {
           />
         </div>
 
-        {/* Submit Button */}
         {!submitted && feedback && (
           <button
             onClick={submitAnswer}
@@ -212,7 +291,6 @@ export default function HRInterview() {
           </button>
         )}
 
-        {/* Feedback Section */}
         {submitted && feedback && (
           <>
             <InterviewFeedback feedback={feedback} />
@@ -226,18 +304,13 @@ export default function HRInterview() {
               </button>
             </div>
 
-            <NextSteps feedback={feedback} />
-
-            {/* Navigation Buttons */}
             <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
-              {currentIndex < hrQuestions.length - 1 && (
-                <button
-                  onClick={goToNextQuestion}
-                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold"
-                >
-                  Next Question →
-                </button>
-              )}
+              <button
+                onClick={() => goToNextQuestion()}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold"
+              >
+                Next →
+              </button>
 
               <button
                 onClick={finishInterview}
@@ -247,9 +320,6 @@ export default function HRInterview() {
               </button>
             </div>
 
-            <p className="mt-3 text-sm text-gray-600 text-center">
-              Question {currentIndex + 1} of {hrQuestions.length}
-            </p>
           </>
         )}
       </div>
