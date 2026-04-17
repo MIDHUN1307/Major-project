@@ -8,8 +8,20 @@ def generate_questions(chunk):
 
     inputs = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True)
 
-    outputs = model.generate(inputs, max_length=64, num_beams=4, early_stopping=True)
+    #outputs = model.generate(inputs, max_length=64, num_beams=4, early_stopping=True)
+    outputs = model.generate(
+    inputs,
+    max_length=64,
+    num_beams=5,
+    num_return_sequences=5,   # ✅ generate 5 questions
+    early_stopping=True
+)
 
-    question = tokenizer.decode(outputs[0], skip_special_tokens=True)
+  #  question = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    questions = []
 
-    return question
+    for output in outputs:
+        q = tokenizer.decode(output, skip_special_tokens=True)
+        questions.append(q)
+
+    return questions

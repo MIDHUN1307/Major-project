@@ -36,8 +36,10 @@ async def process_pdf(file):
 
     questions = []
 
-    for chunk in chunks[:10]:
+    for chunk in chunks[:3]:   # limit chunks (faster + cleaner)
         q = generate_questions(chunk)
-        questions.append(q)
+        questions.extend(q)   # ✅ FIXED
 
-    return {"questions": questions}
+    questions = list(set(questions))  # optional dedup
+
+    return {"questions": questions[:5]}  # ✅ only 5
