@@ -59,7 +59,8 @@ export default function PreparationModules({ aptitudeProgress, codingProgress, h
                   aptitude: "/aptitude",
                   coding: "/coding",
                   interview: "/hr",
-                  "hr interview": "/hr"
+                  "hr interview": "/hr",
+                  "core subjects": "/core"
                 };
 
                 const key = m.title?.trim().toLowerCase();
