@@ -12,55 +12,71 @@ import { computeAptitudeProgress, computeCodingProgress, computeOverallReadiness
 export default function Dashboard() {
 
   const [hrProgress, setHrProgress] = useState(0);
+  const [coreProgress, setCoreProgress] = useState(0);
   const [aptitudeProgress, setAptitudeProgress] = useState(0);
   const [codingProgress, setCodingProgress] = useState(0);
   const [overallReadiness, setOverallReadiness] = useState(0);
 
   useEffect(() => {
 
-    const fetchHRProgress = async () => {
-
+    const fetchProgressFromFirestore = async () => {
       const user = auth.currentUser;
-
       if (!user) return;
 
-      const q = query(
+      // Fetch HR Progress
+      const hrQuery = query(
         collection(db, "interview_results"),
         where("userId", "==", user.uid)
       );
+      const hrSnapshot = await getDocs(hrQuery);
 
-      const snapshot = await getDocs(q);
-
-      if (snapshot.empty) {
-        setHrProgress(0);
-        return;
+      if (!hrSnapshot.empty) {
+        let totalScore = 0;
+        let count = 0;
+        hrSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.finalScore !== undefined) {
+            totalScore += data.finalScore;
+            count++;
+          }
+        });
+        setHrProgress(Math.round(totalScore / count));
       }
 
-      let totalScore = 0;
-      let count = 0;
+      // Fetch Core Progress
+      const coreQuery = query(
+        collection(db, "core_results"),
+        where("userId", "==", user.uid)
+      );
+      const coreSnapshot = await getDocs(coreQuery);
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-
-        if (data.finalScore !== undefined) {
-          totalScore += data.finalScore;
-          count++;
-        }
-      });
-
-      const averageScore = Math.round(totalScore / count);
-
-      setHrProgress(averageScore);
+      if (!coreSnapshot.empty) {
+        let totalScore = 0;
+        let count = 0;
+        coreSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.finalScore !== undefined) {
+            totalScore += data.finalScore;
+            count++;
+          }
+        });
+        setCoreProgress(Math.round(totalScore / count));
+      }
     };
 
-    fetchHRProgress();
+    fetchProgressFromFirestore();
 
   }, []);
 
   const refreshLocalProgress = () => {
     const apt = computeAptitudeProgress();
     const cod = computeCodingProgress();
-    const overall = computeOverallReadiness({ aptitudeProgress: apt, codingProgress: cod, hrProgress });
+    const overall = computeOverallReadiness({
+      aptitudeProgress: apt,
+      codingProgress: cod,
+      hrProgress,
+      coreProgress
+    });
     setAptitudeProgress(apt);
     setCodingProgress(cod);
     setOverallReadiness(overall);
@@ -72,7 +88,7 @@ export default function Dashboard() {
     const handler = () => refreshLocalProgress();
     window.addEventListener("progress-updated", handler);
     return () => window.removeEventListener("progress-updated", handler);
-  }, [hrProgress]);
+  }, [hrProgress, coreProgress]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -92,13 +108,11 @@ export default function Dashboard() {
           aptitudeProgress={aptitudeProgress}
           codingProgress={codingProgress}
           hrProgress={hrProgress}
+          coreProgress={coreProgress}
         />
 
-        <AIRecommendations />
+        {/* <AIRecommendations /> */}
 
-       
-
-        
       </main>
     </div>
   );

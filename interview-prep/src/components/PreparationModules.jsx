@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
-export default function PreparationModules({ aptitudeProgress, codingProgress, hrProgress }) {
+export default function PreparationModules({ aptitudeProgress, codingProgress, hrProgress, coreProgress }) {
 
   const modules = [
     {
@@ -12,7 +12,7 @@ export default function PreparationModules({ aptitudeProgress, codingProgress, h
     {
       title: "Core Subjects",
       desc: "Deep dive into OS, DBMS, Networks, and System Design",
-      progress: 0,
+      progress: coreProgress || 0,
       color: "bg-blue-600",
     },
     {

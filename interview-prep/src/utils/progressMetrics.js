@@ -32,8 +32,8 @@ export function computeCodingProgress() {
   return clampPercent((completed / total) * 100);
 }
 
-export function computeOverallReadiness({ aptitudeProgress, codingProgress, hrProgress }) {
-  const values = [aptitudeProgress, codingProgress, hrProgress].filter((v) => typeof v === "number");
+export function computeOverallReadiness({ aptitudeProgress, codingProgress, hrProgress, coreProgress }) {
+  const values = [aptitudeProgress, codingProgress, hrProgress, coreProgress].filter((v) => typeof v === "number");
   if (values.length === 0) return 0;
   return clampPercent(values.reduce((a, b) => a + b, 0) / values.length);
 }
