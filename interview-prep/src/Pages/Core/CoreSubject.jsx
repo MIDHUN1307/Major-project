@@ -59,9 +59,9 @@ function CoreSubject() {
 
             setResult(res.data);
 
-            // Update scores array
+            // Update scores array using the more accurate LLM score (normalized to 0-1)
             const newScores = [...scores];
-            newScores[currentQ] = res.data.similarity;
+            newScores[currentQ] = res.data.llm_score / 100;
             setScores(newScores);
 
         } catch (error) {
@@ -271,8 +271,8 @@ function CoreSubject() {
                                         <h3 className="font-bold text-slate-800">Evaluation Feedback</h3>
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm text-slate-500">Score:</span>
-                                            <span className={`font-bold ${result.similarity > 0.7 ? "text-emerald-600" : "text-amber-600"}`}>
-                                                {Math.round(result.similarity * 100)}%
+                                            <span className={`font-bold ${result.llm_score >= 70 ? "text-emerald-600" : "text-amber-600"}`}>
+                                                {result.llm_score}%
                                             </span>
                                         </div>
                                     </div>
