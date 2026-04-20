@@ -1,7 +1,9 @@
 from transformers import T5Tokenizer, T5ForConditionalGeneration
+import os
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "../models/t5-finetuned")
 
-tokenizer = T5Tokenizer.from_pretrained("valhalla/t5-base-qg-hl")
-model = T5ForConditionalGeneration.from_pretrained("valhalla/t5-base-qg-hl")
+tokenizer = T5Tokenizer.from_pretrained(MODEL_PATH)
+model = T5ForConditionalGeneration.from_pretrained(MODEL_PATH)
 
 def generate_questions(chunk):
     input_text = "generate question: " + chunk
