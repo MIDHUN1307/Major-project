@@ -1,4 +1,3 @@
-
 import {
   Calculator,
   Brain,
@@ -10,6 +9,7 @@ import {
 import TopicCard from './TopicCard';
 import { useNavigate } from 'react-router-dom';
 import { getBanditDebugSnapshot } from '../utils/banditModel';
+import { getPerformanceHistory, getDifficultyLevel } from '../utils/adaptiveFilter';
 
 const topics = [
   {
@@ -68,6 +68,11 @@ const topics = [
   },
 ];
 
+// Capitalise first letter to match existing TopicCard display style
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 export default function TopicGrid() {
   const navigate = useNavigate();
 
@@ -80,10 +85,17 @@ export default function TopicGrid() {
     ])
   );
 
-  const topicsWithProgress = topics.map((t) => ({
-    ...t,
-    progress: progressByTopic[t.title] ?? 0,
-  }));
+  const topicsWithProgress = topics.map((t) => {
+    // Read this topic's performance history and compute the adaptive difficulty
+    const history = getPerformanceHistory(t.title);
+    const adaptiveDifficulty = capitalize(getDifficultyLevel(history));
+
+    return {
+      ...t,
+      progress: progressByTopic[t.title] ?? 0,
+      difficulty: adaptiveDifficulty,   // ← override hardcoded value with adaptive one
+    };
+  });
 
   return (
     <div className="space-y-6">
