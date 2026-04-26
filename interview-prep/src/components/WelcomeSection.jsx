@@ -19,7 +19,7 @@ export default function WelcomeSection() {
         </div>
       </div>
 
-      <div className="bg-blue-50 border rounded-xl p-4 min-w-[220px]">
+      {/* <div className="bg-blue-50 border rounded-xl p-4 min-w-[220px]">
         <p className="text-sm text-slate-600">Current Level</p>
         <p className="text-lg font-bold mt-1 flex items-center gap-2">
           <span className="w-3 h-3 bg-blue-600 rounded-full" />
@@ -28,7 +28,7 @@ export default function WelcomeSection() {
         <p className="text-sm text-slate-500 mt-1">
           Complete more activities to level up
         </p>
-      </div>
+      </div> */}
     </div>
   );
 }

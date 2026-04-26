@@ -30,8 +30,8 @@ def voice_confidence_score(emotion_scores: dict) -> float:
     """
 
     positive = (
-        emotion_scores.get("neutral", 0.0) * 0.6 +
-        emotion_scores.get("happy", 0.0) * 0.4
+        emotion_scores.get("neutral", 0.0) * 0.7 +
+        emotion_scores.get("happy", 0.0) * 0.3
     )
 
     negative = (

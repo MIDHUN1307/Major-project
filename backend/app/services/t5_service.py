@@ -12,11 +12,18 @@ def generate_questions(chunk):
 
     #outputs = model.generate(inputs, max_length=64, num_beams=4, early_stopping=True)
     outputs = model.generate(
-    inputs,
+    # inputs,
+    # max_length=64,
+    # num_beams=5,
+    # num_return_sequences=5,   # ✅ generate 5 questions
+    # early_stopping=True
+      inputs,
     max_length=64,
-    num_beams=5,
-    num_return_sequences=5,   # ✅ generate 5 questions
-    early_stopping=True
+    do_sample=True,          #  enables randomness
+    top_k=50,                # pick from top 50 words
+    top_p=0.95,              # nucleus sampling
+    temperature=0.7,         # controls randomness
+    num_return_sequences=5
 )
 
   #  question = tokenizer.decode(outputs[0], skip_special_tokens=True)
